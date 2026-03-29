@@ -1,0 +1,18 @@
+@keyframes floatUp {
+  0% { opacity: 0; transform: translateY(0); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-80px); }
+}
+
+.floater {
+  position: fixed;
+  font-family: var(--font-b);
+  font-style: italic;
+  font-size: 0.88rem;
+  color: rgba(210,198,235,0.9);
+  pointer-events: none;
+  white-space: nowrap;
+  animation: floatUp 1.9s ease-out forwards;
+  z-index: 60;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.8);
+}

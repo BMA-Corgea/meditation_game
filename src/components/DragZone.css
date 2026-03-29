@@ -1,0 +1,33 @@
+.drag-zone {
+  position: fixed;
+  top: 32%;
+  left: 8%;
+  right: 8%;
+  height: 1px;
+  pointer-events: none;
+  z-index: 35;
+  background: linear-gradient(to right, transparent, rgba(90,70,160,0.35), transparent);
+  transition: all 0.2s ease;
+}
+
+.drag-zone span {
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-d);
+  font-size: 0.55rem;
+  letter-spacing: 0.35em;
+  color: rgba(90,70,160,0.5);
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: color 0.2s ease;
+}
+
+.drag-zone-ready {
+  background: linear-gradient(to right, transparent, rgba(70,200,150,0.6), transparent);
+  box-shadow: 0 0 16px rgba(50,180,130,0.35);
+  height: 2px;
+}
+
+.drag-zone-ready span { color: rgba(100,210,165,0.85); }

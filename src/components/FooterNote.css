@@ -1,0 +1,25 @@
+.footer {
+  position: fixed;
+  bottom: 0.6rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-d);
+  font-size: 0.55rem;
+  font-weight: 400;
+  letter-spacing: 0.4em;
+  color: rgba(80,70,100,0.45);
+  text-transform: lowercase;
+  pointer-events: none;
+  user-select: none;
+  transition: color 1s ease, opacity 0.8s ease, letter-spacing 0.8s ease;
+  z-index: 200;
+}
+
+.app.calm-active .footer {
+  color: rgba(80,190,140,0.52);
+  letter-spacing: 0.5em;
+}
+
+.app.hush .footer {
+  opacity: 0.78;
+}

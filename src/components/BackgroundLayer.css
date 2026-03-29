@@ -1,0 +1,87 @@
+.starfield { position: fixed; inset: 0; pointer-events: none; z-index: 0; transition: opacity 1.2s ease; }
+.starfield-office { opacity: 0.55; }
+.starfield-gold { opacity: 0.82; }
+
+@keyframes twinkle { 0%,100% { opacity: var(--base-op, 0.15); } 50% { opacity: calc(var(--base-op, 0.15) * 3.5); } }
+
+.star {
+  position: absolute;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 10px rgba(255,255,255,0.12);
+  animation: twinkle var(--sdur) var(--sdel) ease-in-out infinite;
+}
+
+.ambient {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 15% 60%, var(--scene-a) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 15%, var(--scene-b) 0%, transparent 48%),
+    radial-gradient(ellipse at 50% 90%, var(--scene-c)  0%, transparent 45%),
+    radial-gradient(ellipse at 70% 50%, var(--scene-d) 0%, transparent 40%);
+  pointer-events: none;
+  z-index: 1;
+  animation: ambientShift 11s ease-in-out infinite alternate;
+}
+
+@keyframes ambientShift { from { opacity: 0.55; transform: scale(1); } to { opacity: 1; transform: scale(1.04); } }
+
+.vignette {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 48%, transparent 45%, rgba(0,0,0,0.65) 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.scanlines {
+  position: fixed;
+  inset: 0;
+  background-image: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px);
+  pointer-events: none;
+  z-index: 3;
+}
+
+@keyframes urgentVignette {
+  0%,100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+.overlay-urgent {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 50%, transparent 28%, rgba(200,20,20,0.28) 100%),
+    linear-gradient(to bottom, rgba(180,10,10,0.06), rgba(200,20,20,0.14));
+  pointer-events: none;
+  z-index: 8;
+  animation: urgentVignette calc(0.8s + (1 / var(--uc, 1)) * 0.5s) ease-in-out infinite;
+}
+
+@keyframes drearyPulse { 0%,100% { opacity: 0.65; } 50% { opacity: 1; } }
+
+.overlay-dreary {
+  position: fixed;
+  inset: 0;
+  background: rgba(18, 8, 36, calc(0.2 + var(--ic, 1) * 0.07));
+  pointer-events: none;
+  z-index: 7;
+  animation: drearyPulse 4s ease-in-out infinite;
+}
+
+@keyframes mysticBloom {
+  0%,100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 0.75; transform: scale(1.03); }
+}
+
+.overlay-mystic {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(255,176,70, calc(0.06 + var(--mc, 1) * 0.03)), transparent 26%),
+    radial-gradient(circle at 50% 68%, rgba(255,214,120, calc(0.03 + var(--mc, 1) * 0.02)), transparent 42%);
+  pointer-events: none;
+  z-index: 6;
+  animation: mysticBloom 6s ease-in-out infinite;
+}
