@@ -1,3 +1,4 @@
+import constellationImage from '../assets/media/background_image.png'
 import './BackgroundLayer.css'
 
 export function BackgroundLayer({ stars, scene, showUrgent, urgentCount, showDreary, intrusiveCount, mysticCount }) {
@@ -21,6 +22,10 @@ export function BackgroundLayer({ stars, scene, showUrgent, urgentCount, showDre
         ))}
       </div>
       <div className="ambient" />
+      <div
+        className={`constellation-backdrop constellation-backdrop-${scene}`}
+        style={{ backgroundImage: `url(${constellationImage})` }}
+      />
       <div className="vignette" />
       <div className="scanlines" />
       {showUrgent && <div className="overlay-urgent" style={{ '--uc': urgentCount }} />}

@@ -27,12 +27,32 @@
 
 @keyframes ambientShift { from { opacity: 0.55; transform: scale(1); } to { opacity: 1; transform: scale(1.04); } }
 
+.constellation-backdrop {
+  position: fixed;
+  inset: 0;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  opacity: 0.18;
+  mix-blend-mode: screen;
+  filter: saturate(0.8) brightness(0.72);
+  pointer-events: none;
+  z-index: 2;
+  transition: opacity 1.2s ease, filter 1.2s ease;
+}
+
+.constellation-backdrop-night { opacity: 0.2; }
+.constellation-backdrop-dawn { opacity: 0.16; filter: saturate(0.75) brightness(0.82); }
+.constellation-backdrop-rain { opacity: 0.14; filter: saturate(0.68) brightness(0.7); }
+.constellation-backdrop-gold { opacity: 0.24; filter: saturate(0.9) brightness(0.86); }
+.constellation-backdrop-office { opacity: 0.1; filter: saturate(0.48) brightness(0.62); }
+
 .vignette {
   position: fixed;
   inset: 0;
   background: radial-gradient(ellipse at 50% 48%, transparent 45%, rgba(0,0,0,0.65) 100%);
   pointer-events: none;
-  z-index: 2;
+  z-index: 3;
 }
 
 .scanlines {
@@ -40,7 +60,7 @@
   inset: 0;
   background-image: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px);
   pointer-events: none;
-  z-index: 3;
+  z-index: 4;
 }
 
 @keyframes urgentVignette {

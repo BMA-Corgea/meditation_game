@@ -9,6 +9,7 @@ export const EMAIL_SUBJECTS = gameContent.emailSubjects
 export const EMAIL_SENDERS = gameContent.emailSenders
 export const TEXT_SENDERS = gameContent.textSenders
 export const TEXT_SNIPPETS = gameContent.textSnippets
+export const BREATHING_QUOTES = gameContent.breathingQuotes
 export const FOOTER_NOTES = gameContent.footerNotes
 export const CALM_FOOTER_NOTES = gameContent.calmFooterNotes
 export const HUD_LABELS = gameContent.hudLabels

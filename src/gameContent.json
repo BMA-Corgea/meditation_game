@@ -96,6 +96,68 @@
   "emailSenders": ["marin@soft-omen.biz", "team@slightpressure.co", "noreply@thefeeling.app", "celine@warmstatic.net", "ops@decorative-impact.io", "hello@minorgravity.org"],
   "textSenders": ["Maya", "Unknown Number", "Group Chat", "Dad", "Sam", "Delivery Update", "Ari", "Calendar"],
   "textSnippets": ["hey are you seeing this", "no rush but kind of a rush", "circling back emotionally", "this can wait unless it cannot", "just checking the temperature", "you there?", "the plan shifted slightly", "we can ignore this for now"],
+  "breathingQuotes": [
+    {
+      "text": "Muddy water is best cleared by leaving it alone.",
+      "author": "Alan Watts",
+      "source": "The Way of Zen"
+    },
+    {
+      "text": "Trying to define yourself is like trying to bite your own teeth.",
+      "author": "Alan Watts",
+      "source": "This Is It"
+    },
+    {
+      "text": "The meaning of life is just to be alive.",
+      "author": "Alan Watts",
+      "source": "This Is It"
+    },
+    {
+      "text": "To have faith is to trust yourself to the water.",
+      "author": "Alan Watts",
+      "source": "This Is It"
+    },
+    {
+      "text": "This is the real secret of life.",
+      "author": "Alan Watts",
+      "source": "The Book"
+    },
+    {
+      "text": "No valid plans for the future can be made by those who have no capacity for living now.",
+      "author": "Alan Watts",
+      "source": "The Wisdom of Insecurity"
+    },
+    {
+      "text": "True intelligence operates silently.",
+      "author": "Eckhart Tolle",
+      "source": "Journeys Into Stillness"
+    },
+    {
+      "text": "Realize deeply that the present moment is all you have.",
+      "author": "Eckhart Tolle",
+      "source": "The Power of Now"
+    },
+    {
+      "text": "Stillness is where creativity and solutions to problems are found.",
+      "author": "Eckhart Tolle",
+      "source": "Awakening Presence in Times of Adversity"
+    },
+    {
+      "text": "When your attention moves into the Now, there is an alertness.",
+      "author": "Eckhart Tolle",
+      "source": "When your attention moves into the Now"
+    },
+    {
+      "text": "The eternal stillness that preceded the Big Bang exists within you.",
+      "author": "Eckhart Tolle",
+      "source": "Touching the Eternal"
+    },
+    {
+      "text": "The arising of Presence is no longer a luxury; it's a necessity.",
+      "author": "Eckhart Tolle",
+      "source": "The Power of Presence"
+    }
+  ],
   "footerNotes": ["notice the impulse", "leave it alone", "not every thought is a task", "you can let it pass", "it does not all require you", "nothing is asking for mastery"],
   "calmFooterNotes": ["just this", "still here", "without fixing it", "enough to notice", "no optimization required"],
   "hudLabels": ["MEANINGLESS TOTAL", "ACCUMULATED SIGNIFICANCE", "UNVERIFIED IMPORTANCE", "CEREMONIAL METRIC", "PERSONAL ATMOSPHERE INDEX", "TOTAL REASONS TO KEEP GOING"]

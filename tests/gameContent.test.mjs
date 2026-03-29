@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  BREATHING_QUOTES,
   CARD_POOL,
   WALKER_POOL,
   FAKE_STAT_LABELS,
@@ -59,4 +60,15 @@ test('fake stat output never becomes all positive or all negative', () => {
 
   assert.ok(allPositiveAttempt.deltas.some(delta => delta.delta < 0))
   assert.ok(allNegativeAttempt.deltas.some(delta => delta.delta > 0))
+})
+
+test('breathing quote pool contains twelve attributed quotes split across Alan Watts and Eckhart Tolle', () => {
+  assert.equal(BREATHING_QUOTES.length, 12)
+
+  const alanWattsCount = BREATHING_QUOTES.filter(quote => quote.author === 'Alan Watts').length
+  const eckhartTolleCount = BREATHING_QUOTES.filter(quote => quote.author === 'Eckhart Tolle').length
+
+  assert.equal(alanWattsCount, 6)
+  assert.equal(eckhartTolleCount, 6)
+  assert.ok(BREATHING_QUOTES.every(quote => typeof quote.text === 'string' && typeof quote.source === 'string'))
 })

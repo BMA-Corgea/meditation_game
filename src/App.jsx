@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import './App.css'
-import ambienceTrack from '../Ambiance Music.mp3'
+import ambienceTrack from './assets/media/Ambiance_Music.mp3'
 import {
+  BREATHING_QUOTES,
   WALKER_POOL,
   FOOTER_NOTES,
   CALM_FOOTER_NOTES,
@@ -57,6 +58,7 @@ export default function App() {
   const [calmBreath, setCalmBreath] = useState(false)
   const [floaters, setFloaters] = useState([])
   const [numPop, setNumPop] = useState(null)
+  const [breathQuote, setBreathQuote] = useState(null)
   const [walkers, setWalkers] = useState([])
   const [dragState, setDragState] = useState(null)
   const [footerText, setFooterText] = useState(FOOTER_NOTES[0])
@@ -73,6 +75,9 @@ export default function App() {
   const walkerProcessed = useRef(new Set())
   const walkerTimers = useRef(new Map())
   const audioRef = useRef(null)
+  const quoteTimerRef = useRef(null)
+  const quoteClearTimerRef = useRef(null)
+  const lastBreathQuoteIndexRef = useRef(-1)
 
   useEffect(() => {
     calmRef.current = calm
@@ -81,6 +86,11 @@ export default function App() {
   useEffect(() => {
     settleRef.current = settleLevel
   }, [settleLevel])
+
+  useEffect(() => () => {
+    if (quoteTimerRef.current) clearTimeout(quoteTimerRef.current)
+    if (quoteClearTimerRef.current) clearTimeout(quoteClearTimerRef.current)
+  }, [])
 
   useEffect(() => {
     const audio = new Audio(ambienceTrack)
@@ -210,11 +220,14 @@ export default function App() {
   }, [addEffect])
 
   const completeBreathe = useCallback(() => {
+    if (quoteTimerRef.current) clearTimeout(quoteTimerRef.current)
+    if (quoteClearTimerRef.current) clearTimeout(quoteClearTimerRef.current)
     setEffects([])
     setModals([])
     setFloaters([])
     setBigNumber(0)
     setNumPop(null)
+    setBreathQuote(null)
     setCalmBreath(true)
     setCalm(true)
     setSettleLevel(prev => Math.min(SETTLE_MAX, prev + 1))
@@ -225,6 +238,21 @@ export default function App() {
     walkerProcessed.current.clear()
     walkerTimers.current.forEach(timers => timers.forEach(clearTimeout))
     walkerTimers.current.clear()
+
+    quoteTimerRef.current = setTimeout(() => {
+      let nextIndex = Math.floor(Math.random() * BREATHING_QUOTES.length)
+      if (BREATHING_QUOTES.length > 1) {
+        while (nextIndex === lastBreathQuoteIndexRef.current) {
+          nextIndex = Math.floor(Math.random() * BREATHING_QUOTES.length)
+        }
+      }
+      lastBreathQuoteIndexRef.current = nextIndex
+      setBreathQuote(BREATHING_QUOTES[nextIndex])
+    }, 2000)
+
+    quoteClearTimerRef.current = setTimeout(() => {
+      setBreathQuote(null)
+    }, 12000)
 
     setTimeout(() => {
       setCalmBreath(false)
@@ -648,7 +676,7 @@ export default function App() {
         intrusiveCount={intrusiveCount}
         mysticCount={mysticCount}
       />
-      <NumberHud label={hudLabel} bigNumber={fmt(bigNumber)} numPop={numPop} />
+      <NumberHud label={hudLabel} bigNumber={fmt(bigNumber)} numPop={numPop} quote={breathQuote} />
       <WalkerLayer walkers={walkers} onWalkerClick={handleWalkerClick} />
       <FloaterLayer floaters={floaters} />
       <DragZone visible={isDraggingAny} ready={isGlobalReady} />
