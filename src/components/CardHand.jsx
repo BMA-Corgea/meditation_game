@@ -11,6 +11,7 @@ const TEMPERAMENT_BADGES = {
 function CardItem({
   card,
   dragState,
+  floating = false,
   onPointerDown,
   onPointerMove,
   onPointerUp,
@@ -26,47 +27,61 @@ function CardItem({
   return (
     <div
       className={[
-        'card',
-        `card-${card.style}`,
-        card.temperament ? `card-${card.temperament}` : '',
-        card.fading ? 'card-fading' : '',
-        dragging ? 'card-dragging' : '',
-        ready ? 'card-ready' : '',
+        floating ? 'card-slot' : 'card-row-slot',
+        dragging ? 'card-slot-dragging' : '',
       ].filter(Boolean).join(' ')}
-      style={{
-        '--tilt': `${card.tilt}deg`,
-        '--drift': `${card.drift ?? 0}px`,
-        '--pulse': `${card.pulse ?? 4}s`,
-        '--persona-x': `${card.personaX ?? 0}px`,
-        '--persona-y': `${card.personaY ?? 0}px`,
-        '--jitter-x': `${card.jitterX ?? 0}px`,
-        '--jitter-y': `${card.jitterY ?? 0}px`,
-        '--temper-rotate': `${card.temperRotate ?? 0}deg`,
-        '--jitter-boost': `${card.jitterBoost ?? 0}px`,
-        ...(dragging ? {
-          transform: `translate(${dx}px, ${dy}px) scale(1.1) rotate(0deg)`,
-          zIndex: 80,
-          transition: 'box-shadow 0.12s, filter 0.12s',
-          cursor: 'grabbing',
-        } : {}),
-      }}
-      onPointerDown={event => onPointerDown(event, card)}
-      onPointerMove={event => onPointerMove(event, card)}
-      onPointerEnter={event => onPointerMove(event, card)}
-      onPointerUp={event => onPointerUp(event, card)}
-      onPointerCancel={onPointerCancel}
-      onPointerLeave={() => onPointerLeave(card)}
+      style={floating ? {
+        '--card-x': `${card.anchorX ?? 50}%`,
+        '--card-y': `${card.anchorY ?? 74}%`,
+        zIndex: dragging ? 240 : 160,
+        transition: card.temperament === 'elusive' ? 'none' : undefined,
+      } : undefined}
     >
-      <div className={`card-cost${card.type === 'breathe' ? ' cost-zero' : ''}`}>
-        <span className="card-cost-glyph">{badge.glyph}</span>
-        <span className="card-cost-label">{badge.label}</span>
+      <div
+        className={[
+          'card',
+          `card-${card.style}`,
+          card.temperament ? `card-${card.temperament}` : '',
+          card.fading ? 'card-fading' : '',
+          card.played ? 'card-played' : '',
+          dragging ? 'card-dragging' : '',
+          ready ? 'card-ready' : '',
+        ].filter(Boolean).join(' ')}
+        style={{
+          '--tilt': `${card.tilt}deg`,
+          '--drift': `${card.drift ?? 0}px`,
+          '--pulse': `${card.pulse ?? 4}s`,
+          '--persona-x': `${card.personaX ?? 0}px`,
+          '--persona-y': `${card.personaY ?? 0}px`,
+          '--jitter-x': `${card.jitterX ?? 0}px`,
+          '--jitter-y': `${card.jitterY ?? 0}px`,
+          '--temper-rotate': `${card.temperRotate ?? 0}deg`,
+          '--jitter-boost': `${card.jitterBoost ?? 0}px`,
+          ...(dragging ? {
+            transform: `translate(${dx}px, ${dy}px) scale(1.1) rotate(0deg)`,
+            zIndex: 80,
+            transition: 'box-shadow 0.12s, filter 0.12s',
+            cursor: 'grabbing',
+          } : {}),
+        }}
+        onPointerDown={event => onPointerDown(event, card)}
+        onPointerMove={event => onPointerMove(event, card)}
+        onPointerEnter={event => onPointerMove(event, card)}
+        onPointerUp={event => onPointerUp(event, card)}
+        onPointerCancel={onPointerCancel}
+        onPointerLeave={() => onPointerLeave(card)}
+      >
+        <div className={`card-cost${card.type === 'breathe' ? ' cost-zero' : ''}`}>
+          <span className="card-cost-glyph">{badge.glyph}</span>
+          <span className="card-cost-label">{badge.label}</span>
+        </div>
+        <div className="card-art" />
+        <div className="card-body">
+          <div className="card-title">{card.title}</div>
+          {card.flavor && <div className="card-flavor">{card.flavor}</div>}
+        </div>
+        {!dragging && <div className="drag-hint">↑</div>}
       </div>
-      <div className="card-art" />
-      <div className="card-body">
-        <div className="card-title">{card.title}</div>
-        {card.flavor && <div className="card-flavor">{card.flavor}</div>}
-      </div>
-      {!dragging && <div className="drag-hint">↑</div>}
     </div>
   )
 }
@@ -82,8 +97,15 @@ export function CardHand(props) {
     drift: 0,
     pulse: 4.2,
     cost: 0,
+    anchorX: 50,
+    anchorY: 82,
   }
-  const visibleCards = [breatheCard, ...props.cards]
+  const rowCards = [breatheCard, ...props.cards.filter(card => (
+    card.temperament === 'steady' || card.temperament === 'jittery'
+  ))]
+  const floatingCards = props.cards.filter(card => (
+    card.temperament === 'hovering' || card.temperament === 'elusive'
+  ))
   const handClass = [
     'hand',
     props.urgentCount > 0 ? 'hand-has-urgent' : '',
@@ -93,8 +115,13 @@ export function CardHand(props) {
 
   return (
     <div className={handClass}>
+      <div className="hand-overlay">
+        {floatingCards.map(card => (
+          <CardItem key={card.id} card={card} floating {...props} />
+        ))}
+      </div>
       <div className="hand-cards">
-        {visibleCards.map(card => (
+        {rowCards.map(card => (
           <CardItem key={card.id} card={card} {...props} />
         ))}
       </div>

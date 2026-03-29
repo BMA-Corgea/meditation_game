@@ -30,6 +30,11 @@ import { FooterNote } from './components/FooterNote.jsx'
 const SCENES = ['night', 'dawn', 'rain', 'gold', 'office']
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
 const SETTLE_MAX = 4
+export const IDLE_SETTLE_DELAY = 12000
+const CARD_X_MIN = 8
+const CARD_X_MAX = 92
+const CARD_Y_MIN = 20
+const CARD_Y_MAX = 82
 
 function shouldAllowStimulus(settleLevel, resistance, rng = Math.random) {
   const suppression = Math.min(0.82, settleLevel * resistance)
@@ -49,6 +54,10 @@ function randomFrom(items) {
   return items[Math.floor(Math.random() * items.length)]
 }
 
+export function shouldGainIdleSettle(now, lastEngagedAt, lastIdleSettleAt, delay = IDLE_SETTLE_DELAY) {
+  return now - lastEngagedAt >= delay && now - lastIdleSettleAt >= delay
+}
+
 export default function App() {
   const [cards, setCards] = useState(() => [makeCard(0), makeCard(0), makeCard(0)])
   const [bigNumber, setBigNumber] = useState(0)
@@ -66,6 +75,7 @@ export default function App() {
   const [scene, setScene] = useState('night')
   const [audioEnabled, setAudioEnabled] = useState(true)
   const [audioStarted, setAudioStarted] = useState(false)
+  const [audioVolume, setAudioVolume] = useState(42)
   const [settleLevel, setSettleLevel] = useState(0)
 
   const calmRef = useRef(false)
@@ -78,6 +88,8 @@ export default function App() {
   const quoteTimerRef = useRef(null)
   const quoteClearTimerRef = useRef(null)
   const lastBreathQuoteIndexRef = useRef(-1)
+  const lastEngagedAtRef = useRef(Date.now())
+  const lastIdleSettleAtRef = useRef(Date.now())
 
   useEffect(() => {
     calmRef.current = calm
@@ -95,7 +107,8 @@ export default function App() {
   useEffect(() => {
     const audio = new Audio(ambienceTrack)
     audio.loop = true
-    audio.volume = 0.42
+    audio.preload = 'auto'
+    audio.volume = audioVolume / 100
     audioRef.current = audio
 
     return () => {
@@ -105,44 +118,74 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    if (!audioRef.current) return
+    audioRef.current.volume = audioVolume / 100
+  }, [audioVolume])
+
+  const startAudio = useCallback(() => {
+    if (!audioEnabled || !audioRef.current) return
+
+    audioRef.current.play()
+      .then(() => {
+        setAudioStarted(true)
+      })
+      .catch(() => {})
+  }, [audioEnabled])
+
+  useEffect(() => {
     if (!audioEnabled) {
       audioRef.current?.pause()
       return
     }
 
     if (audioStarted) {
-      audioRef.current?.play().catch(() => {})
+      startAudio()
     }
-  }, [audioEnabled, audioStarted])
+  }, [audioEnabled, audioStarted, startAudio])
 
   useEffect(() => {
     const beginAudio = () => {
-      if (!audioEnabled || audioStarted || !audioRef.current) return
-      setAudioStarted(true)
-      audioRef.current.play().catch(() => {})
+      if (audioStarted) return
+      startAudio()
     }
 
     window.addEventListener('pointerdown', beginAudio, { passive: true })
+    window.addEventListener('touchstart', beginAudio, { passive: true })
+    window.addEventListener('click', beginAudio, { passive: true })
     window.addEventListener('keydown', beginAudio)
 
     return () => {
       window.removeEventListener('pointerdown', beginAudio)
+      window.removeEventListener('touchstart', beginAudio)
+      window.removeEventListener('click', beginAudio)
       window.removeEventListener('keydown', beginAudio)
     }
-  }, [audioEnabled, audioStarted])
+  }, [audioStarted, startAudio])
 
   const toggleAudio = useCallback(() => {
     setAudioEnabled(prev => {
       const next = !prev
       if (!next) {
         audioRef.current?.pause()
-      } else {
-        setAudioStarted(true)
-        audioRef.current?.play().catch(() => {})
+      } else if (audioRef.current) {
+        audioRef.current.play()
+          .then(() => {
+            setAudioStarted(true)
+          })
+          .catch(() => {})
       }
       return next
     })
   }, [])
+
+  const handleVolumeChange = useCallback((event) => {
+    setAudioVolume(Number(event.target.value))
+    startAudio()
+  }, [startAudio])
+
+  const handleVolumePointerDown = useCallback(() => {
+    startAudio()
+  }, [startAudio])
 
   const addEffect = useCallback((name, dur) => {
     if (calmRef.current && name !== 'hush') return
@@ -162,6 +205,12 @@ export default function App() {
 
   const rotateScene = useCallback(() => {
     setScene(prev => nextDifferent(SCENES, prev))
+  }, [])
+
+  const registerEngagement = useCallback(() => {
+    const now = Date.now()
+    lastEngagedAtRef.current = now
+    lastIdleSettleAtRef.current = now
   }, [])
 
   const applyEffect = useCallback((effect, amount) => {
@@ -220,6 +269,7 @@ export default function App() {
   }, [addEffect])
 
   const completeBreathe = useCallback(() => {
+    registerEngagement()
     if (quoteTimerRef.current) clearTimeout(quoteTimerRef.current)
     if (quoteClearTimerRef.current) clearTimeout(quoteClearTimerRef.current)
     setEffects([])
@@ -258,7 +308,7 @@ export default function App() {
       setCalmBreath(false)
       setCalm(false)
     }, 3200)
-  }, [addFloater])
+  }, [addFloater, registerEngagement])
 
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -271,12 +321,24 @@ export default function App() {
   useEffect(() => {
     const intervalId = setInterval(() => {
       const now = Date.now()
+      if (!shouldGainIdleSettle(now, lastEngagedAtRef.current, lastIdleSettleAtRef.current)) return
+
+      lastIdleSettleAtRef.current = now
+      setSettleLevel(prev => Math.min(SETTLE_MAX, prev + 1))
+    }, 1000)
+
+    return () => clearInterval(intervalId)
+  }, [])
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      const now = Date.now()
       setCards(prev =>
         prev
           .map(card => {
             const age = now - card.born
             if (age > card.lifespan) return null
-            if (age > card.lifespan - 1000 && !card.fading) return { ...card, fading: true }
+            if (age > card.lifespan - 1550 && !card.fading) return { ...card, fading: true, personaX: 0, personaY: 0, temperRotate: 0, jitterX: 0, jitterY: 0, jitterBoost: 0 }
             return card
           })
           .filter(Boolean)
@@ -284,6 +346,113 @@ export default function App() {
     }, 250)
 
     return () => clearInterval(intervalId)
+  }, [])
+
+  useEffect(() => {
+    if (!cards.some(card => !card.deployed)) return
+
+    const frameId = window.requestAnimationFrame(() => {
+      setCards(prev => prev.map(card => (
+        card.deployed
+          ? card
+          : card.temperament === 'elusive'
+            ? {
+                ...card,
+                deployed: true,
+              }
+            : {
+                ...card,
+                anchorX: clamp(card.homeX, CARD_X_MIN, CARD_X_MAX),
+                anchorY: clamp(card.homeY, CARD_Y_MIN, CARD_Y_MAX),
+                deployed: true,
+              }
+      )))
+    })
+
+    return () => window.cancelAnimationFrame(frameId)
+  }, [cards])
+
+  useEffect(() => {
+    let frameId = 0
+
+    const tick = () => {
+      setCards(prev => {
+        const movingIds = new Set(
+          prev
+            .filter(card => (
+              card.temperament === 'elusive' &&
+              !card.fading &&
+              dragRef.current?.cardId !== card.id
+            ))
+            .map(card => card.id)
+        )
+
+        if (movingIds.size === 0) return prev
+
+        const viewportWidth = Math.max(window.innerWidth || 1, 1)
+        const viewportHeight = Math.max(window.innerHeight || 1, 1)
+        const next = prev.map(card => movingIds.has(card.id) ? { ...card } : card)
+        const elusiveCards = next.filter(card => movingIds.has(card.id))
+
+        elusiveCards.forEach(card => {
+          card.velocityX = (card.velocityX ?? 0) + (card.homeX - card.anchorX) * 0.0003
+          card.velocityY = (card.velocityY ?? 0) + (card.homeY - card.anchorY) * 0.0003
+        })
+
+        for (let i = 0; i < elusiveCards.length; i += 1) {
+          for (let j = i + 1; j < elusiveCards.length; j += 1) {
+            const a = elusiveCards[i]
+            const b = elusiveCards[j]
+            const dxPx = ((b.anchorX - a.anchorX) / 100) * viewportWidth
+            const dyPx = ((b.anchorY - a.anchorY) / 100) * viewportHeight
+            const distance = Math.hypot(dxPx, dyPx) || 1
+            const minDistance = 138
+
+            if (distance >= minDistance) continue
+
+            const overlap = minDistance - distance
+            const nx = dxPx / distance
+            const ny = dyPx / distance
+            const shoveX = (overlap * nx * 0.11) / viewportWidth * 100
+            const shoveY = (overlap * ny * 0.11) / viewportHeight * 100
+
+            a.velocityX -= shoveX
+            a.velocityY -= shoveY
+            b.velocityX += shoveX
+            b.velocityY += shoveY
+          }
+        }
+
+        let changed = false
+        elusiveCards.forEach(card => {
+          const nextVelocityX = (card.velocityX ?? 0) * 0.86
+          const nextVelocityY = (card.velocityY ?? 0) * 0.86
+          const nextAnchorX = clamp(card.anchorX + nextVelocityX, CARD_X_MIN, CARD_X_MAX)
+          const nextAnchorY = clamp(card.anchorY + nextVelocityY, CARD_Y_MIN, CARD_Y_MAX)
+
+          if (
+            Math.abs(nextAnchorX - card.anchorX) > 0.01 ||
+            Math.abs(nextAnchorY - card.anchorY) > 0.01 ||
+            Math.abs(nextVelocityX - (card.velocityX ?? 0)) > 0.01 ||
+            Math.abs(nextVelocityY - (card.velocityY ?? 0)) > 0.01
+          ) {
+            changed = true
+          }
+
+          card.anchorX = nextAnchorX
+          card.anchorY = nextAnchorY
+          card.velocityX = nextVelocityX
+          card.velocityY = nextVelocityY
+        })
+
+        return changed ? next : prev
+      })
+
+      frameId = window.requestAnimationFrame(tick)
+    }
+
+    frameId = window.requestAnimationFrame(tick)
+    return () => window.cancelAnimationFrame(frameId)
   }, [])
 
   useEffect(() => {
@@ -448,6 +617,8 @@ export default function App() {
 
   const handlePointerDown = useCallback((event, card) => {
     if (card.type === 'breathe' && calmRef.current) return
+    startAudio()
+    registerEngagement()
 
     if (card.temperament === 'elusive' && Date.now() - card.born < 1300) {
       addFloater('too eager')
@@ -465,11 +636,13 @@ export default function App() {
       oy: event.clientY,
       x: event.clientX,
       y: event.clientY,
+      anchorX: card.anchorX ?? 50,
+      anchorY: card.anchorY ?? 74,
     }
 
     dragRef.current = nextDragState
     setDragState(nextDragState)
-  }, [addEffect, addFloater])
+  }, [addEffect, addFloater, registerEngagement, startAudio])
 
   const clearDragState = useCallback(() => {
     dragRef.current = null
@@ -581,11 +754,41 @@ export default function App() {
       if (card.style === 'legendary' || card.temperament === 'hovering') {
         rotateScene()
       }
-      setCards(prev => prev.filter(item => item.id !== card.id))
+      setCards(prev => prev.map(item => item.id === card.id ? { ...item, played: true, fading: false, personaX: 0, personaY: 0, temperRotate: 0, jitterX: 0, jitterY: 0, jitterBoost: 0 } : item))
+      setTimeout(() => {
+        setCards(prev => prev.filter(item => item.id !== card.id))
+      }, 540)
+      return
     }
+
+    if (card.type === 'breathe' || card.temperament === 'steady' || card.temperament === 'jittery') {
+      return
+    }
+
+    const viewportWidth = Math.max(window.innerWidth || 1, 1)
+    const viewportHeight = Math.max(window.innerHeight || 1, 1)
+    const dxPct = ((currentDrag.x - currentDrag.ox) / viewportWidth) * 100
+    const dyPct = ((currentDrag.y - currentDrag.oy) / viewportHeight) * 100
+
+    setCards(prev => prev.map(item => (
+      item.id === card.id
+        ? {
+            ...item,
+            anchorX: clamp(currentDrag.anchorX + dxPct, CARD_X_MIN, CARD_X_MAX),
+            anchorY: clamp(currentDrag.anchorY + dyPct, CARD_Y_MIN, CARD_Y_MAX),
+            homeX: clamp(currentDrag.anchorX + dxPct, CARD_X_MIN, CARD_X_MAX),
+            homeY: clamp(currentDrag.anchorY + dyPct, CARD_Y_MIN, CARD_Y_MAX),
+            deployed: true,
+            velocityX: 0,
+            velocityY: 0,
+          }
+        : item
+    )))
   }, [addFloater, applyEffect, clearDragState, completeBreathe, rotateScene])
 
   const handleOption = useCallback((modal, option) => {
+    startAudio()
+    registerEngagement()
     const total = option.deltas.reduce((sum, delta) => sum + delta.delta, 0)
     addFloater(option.deltas.map(({ label, delta }) => `${delta > 0 ? '+' : ''}${delta} ${label.toLowerCase()}`).join('  '))
     addFloater(modal.omen.toLowerCase())
@@ -594,9 +797,11 @@ export default function App() {
       rotateScene()
     }
     setModals(prev => prev.filter(item => item.id !== modal.id))
-  }, [addEffect, addFloater, rotateScene])
+  }, [addEffect, addFloater, registerEngagement, rotateScene, startAudio])
 
   const handleWalkerClick = useCallback((walker) => {
+    startAudio()
+    registerEngagement()
     if (walker.phase === 'exiting') return
 
     const timers = walkerTimers.current.get(walker.id) ?? []
@@ -636,7 +841,7 @@ export default function App() {
       setWalkers(prev => prev.filter(item => item.id !== walker.id))
       walkerProcessed.current.delete(walker.id)
     }, walker.behavior === 'skittish' ? 420 : 650)
-  }, [addEffect, addFloater])
+  }, [addEffect, addFloater, registerEngagement, startAudio])
 
   const activeCards = cards.filter(card => !card.fading)
   const urgentCount = activeCards.filter(card => card.style === 'urgent').length
@@ -660,13 +865,29 @@ export default function App() {
 
   return (
     <div className={rootClass}>
-      <button
-        type="button"
-        className={`audio-toggle${audioEnabled ? ' is-on' : ''}`}
-        onClick={toggleAudio}
-      >
-        {audioEnabled ? 'ambience on' : 'ambience off'}
-      </button>
+      <div className="audio-controls">
+        <button
+          type="button"
+          className={`audio-toggle${audioEnabled ? ' is-on' : ''}`}
+          onPointerDown={startAudio}
+          onClick={toggleAudio}
+        >
+          {audioEnabled ? 'ambience on' : 'ambience off'}
+        </button>
+        <label className="audio-volume">
+          <span className="audio-volume-label">volume</span>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            value={audioVolume}
+            onPointerDown={handleVolumePointerDown}
+            onChange={handleVolumeChange}
+            aria-label="Ambience volume"
+          />
+        </label>
+      </div>
       <BackgroundLayer
         stars={STARS}
         scene={scene}

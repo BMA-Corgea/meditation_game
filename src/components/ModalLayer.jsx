@@ -1,26 +1,35 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import './ModalLayer.css'
 
+const CONFIRM_FNS = [
+  opt => `${opt}. proceeding.`,
+  opt => `${opt} has been registered.`,
+  opt => `you have selected: ${opt}.`,
+  opt => `${opt}. filed accordingly.`,
+  opt => `${opt}. the system is satisfied.`,
+  opt => `${opt}. this changes nothing.`,
+]
+
 function GraphInterruption({ modal }) {
-  const [activeKey, setActiveKey] = useState(modal.points[0]?.key ?? null)
+  const [chosen, setChosen] = useState(null)
+  const [confirmFnIndex] = useState(() => Math.floor(Math.random() * CONFIRM_FNS.length))
 
   return (
-    <div className="modal-visual modal-visual-graph">
-      <div className="modal-graph-chart">
-        {modal.points.map(point => (
+    <div className="modal-visual modal-visual-panel">
+      <div className={`modal-panel-grid${chosen ? ' has-chosen' : ''}`}>
+        {modal.options.map(option => (
           <button
+            key={option}
             type="button"
-            key={point.key}
-            className={`modal-graph-col${activeKey === point.key ? ' is-active' : ''}`}
-            onClick={() => setActiveKey(point.key)}
+            className={`modal-panel-btn${chosen === option ? ' is-chosen' : ''}`}
+            onClick={() => setChosen(option)}
           >
-            <div className={`modal-graph-bar is-${point.tone}`} style={{ height: `${point.value}%` }} />
-            <div className="modal-graph-label">{point.label}</div>
+            {option}
           </button>
         ))}
       </div>
-      <div className="modal-graph-note">
-        {modal.points.find(point => point.key === activeKey)?.label ?? 'Signal'} trend remains visually convincing.
+      <div className="modal-panel-note">
+        {chosen ? CONFIRM_FNS[confirmFnIndex](chosen) : 'awaiting your non-binding selection.'}
       </div>
     </div>
   )
@@ -128,11 +137,13 @@ function InboxInterruption({ modal }) {
     <div className="modal-visual modal-visual-inbox">
       <div className="modal-inbox-list">
         {modal.items.map(item => (
-          <button
-            type="button"
+          <div
             key={item.key}
+            role="button"
+            tabIndex={0}
             className={`modal-inbox-item${item.unread ? ' is-unread' : ''}${activeKey === item.key ? ' is-active' : ''}`}
             onClick={() => handleMessageClick(item.key)}
+            onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && handleMessageClick(item.key)}
           >
             <div className="modal-inbox-top">
               <span className="modal-inbox-from">{item.from}</span>
@@ -161,9 +172,79 @@ function InboxInterruption({ modal }) {
                 </div>
               </div>
             )}
-          </button>
+          </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+function DrawInterruption() {
+  const canvasRef = useRef(null)
+  const isDrawing = useRef(false)
+  const lastPos = useRef({ x: 0, y: 0 })
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const rect = canvas.getBoundingClientRect()
+    canvas.width = rect.width * window.devicePixelRatio
+    canvas.height = rect.height * window.devicePixelRatio
+    const ctx = canvas.getContext('2d')
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio)
+    ctx.strokeStyle = 'rgba(215, 205, 248, 0.9)'
+    ctx.lineWidth = 2.2
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    ctx.shadowColor = 'rgba(180, 155, 255, 0.4)'
+    ctx.shadowBlur = 4
+  }, [])
+
+  const getPos = (e) => {
+    const canvas = canvasRef.current
+    const rect = canvas.getBoundingClientRect()
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top }
+  }
+
+  const handlePointerDown = (e) => {
+    e.preventDefault()
+    canvasRef.current.setPointerCapture(e.pointerId)
+    isDrawing.current = true
+    lastPos.current = getPos(e)
+  }
+
+  const handlePointerMove = (e) => {
+    if (!isDrawing.current) return
+    const ctx = canvasRef.current.getContext('2d')
+    const pos = getPos(e)
+    ctx.beginPath()
+    ctx.moveTo(lastPos.current.x, lastPos.current.y)
+    ctx.lineTo(pos.x, pos.y)
+    ctx.stroke()
+    lastPos.current = pos
+  }
+
+  const handlePointerUp = () => { isDrawing.current = false }
+
+  const handleClear = () => {
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+  }
+
+  return (
+    <div className="modal-draw-wrap">
+      <canvas
+        ref={canvasRef}
+        className="modal-draw-canvas"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+      />
+      <button type="button" className="modal-draw-clear" onClick={handleClear}>
+        clear
+      </button>
     </div>
   )
 }
@@ -193,6 +274,12 @@ function ModalBody({ modal }) {
     )
   }
 
+  if (modal.type === 'draw') {
+    return (
+      <DrawInterruption />
+    )
+  }
+
   return null
 }
 
@@ -203,26 +290,30 @@ export function ModalLayer({ modals, onOption, onIgnore }) {
       className={`modal modal-type-${modal.type}`}
       style={{ left: `${modal.x}%`, top: `${modal.y}%` }}
     >
-      <p className="modal-prompt">{modal.prompt}</p>
-      <div className="modal-omen">{modal.omen}</div>
-      <ModalBody modal={modal} />
-      {modal.type === 'choice' && (
-        <div className="modal-opts">
-          {modal.options.map(option => (
-            <button key={option.label} className="modal-btn" onClick={() => onOption(modal, option)}>
-              <span className="modal-btn-label">{option.label}</span>
-              <span className="modal-btn-stats">
-                {option.deltas.map(delta => (
-                  <span key={delta.key} className={`modal-stat ${delta.delta > 0 ? 'is-up' : 'is-down'}`}>
-                    {delta.delta > 0 ? '+' : ''}{delta.delta} {delta.label}
-                  </span>
-                ))}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-      <div className="modal-ignore" onClick={() => onIgnore(modal.id)}>ignore</div>
+      <div className="modal-art">
+        <p className="modal-prompt">{modal.prompt}</p>
+        <div className="modal-omen">{modal.omen}</div>
+      </div>
+      <div className="modal-body">
+        <ModalBody modal={modal} />
+        {modal.type === 'choice' && (
+          <div className="modal-opts">
+            {modal.options.map(option => (
+              <button key={option.label} className="modal-btn" onClick={() => onOption(modal, option)}>
+                <span className="modal-btn-label">{option.label}</span>
+                <span className="modal-btn-stats">
+                  {option.deltas.map(delta => (
+                    <span key={delta.key} className={`modal-stat ${delta.delta > 0 ? 'is-up' : 'is-down'}`}>
+                      {delta.delta > 0 ? '↑' : '↓'}{Math.abs(delta.delta)} {delta.label}
+                    </span>
+                  ))}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="modal-ignore" onClick={() => onIgnore(modal.id)}>dissolve</div>
+      </div>
     </div>
   ))
 }

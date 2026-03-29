@@ -25,8 +25,14 @@ export const DRAG_THRESHOLD = -90
 export const WALKER_ARRIVE_DELAY = 80
 export const WALKER_TRANSITION = 1600
 const CARD_TEMPERAMENTS = ['steady', 'jittery', 'hovering', 'elusive']
-const INTERRUPTION_TYPES = ['choice', 'graph', 'board', 'emoji', 'inbox']
-const GRAPH_LABELS = ['Urgency', 'Signal', 'Meaning', 'Follow-through', 'Static', 'Potential']
+const INTERRUPTION_TYPES = ['choice', 'graph', 'board', 'emoji', 'inbox', 'draw']
+const PANEL_OPTIONS_POOL = [
+  'accept', 'defer', 'escalate', 'dissolve', 'optimize', 'observe',
+  'spiral briefly', 'seem fine', 'recalibrate', 'proceed', 'remain', 'act normal',
+  'reflect', 'reassess', 'commit', 'retreat', 'reframe', 'persist',
+  'ignore this', 'engage anyway', 'distance yourself', 'accommodate', 'resist gently', 'continue',
+  'wait it out', 'respond later', 'let go', 'hold on', 'overthink', 'simplify',
+]
 const BOARD_TOKENS = ['◌', '◍', '✦', '✳', '△', '☖', '☗', '☼']
 const EMOJI_CAST = ['🙂', '😵', '🫠', '😶‍🌫️', '🤖', '🫧', '🪨', '💌', '📎', '🪴', '🫀', '🧠']
 const EMOJI_VERBS = ['observing', 'escalating', 'mirroring', 'avoiding', 'misreading', 'hovering near', 'reacting to']
@@ -48,6 +54,37 @@ function pickWeighted(items, weightFn, rng = Math.random) {
   }
 
   return weighted[weighted.length - 1].item
+}
+
+function makeCardPosition(temperament, rng = Math.random) {
+  const spawnX = 22 + rng() * 56
+  const spawnY = 78 + rng() * 4
+
+  if (temperament === 'elusive') {
+    const onLeft = rng() > 0.5
+    return {
+      spawnX,
+      spawnY,
+      homeX: onLeft ? 8 + rng() * 4 : 88 + rng() * 4,
+      homeY: 58 + rng() * 16,
+    }
+  }
+
+  if (temperament === 'hovering') {
+    return {
+      spawnX,
+      spawnY,
+      homeX: spawnX + (rng() - 0.5) * 6,
+      homeY: 64 + rng() * 6,
+    }
+  }
+
+  return {
+    spawnX,
+    spawnY,
+    homeX: spawnX,
+    homeY: spawnY,
+  }
 }
 
 function cardWeight(template, settleLevel) {
@@ -73,16 +110,12 @@ function cardWeight(template, settleLevel) {
 }
 
 function makeGraphInterruption() {
+  const shuffled = [...PANEL_OPTIONS_POOL].sort(() => Math.random() - 0.5)
   return {
     type: 'graph',
-    prompt: pick(['Projected trendline', 'Attention forecast', 'Decorative trajectory']),
-    omen: pick(['Read too much into this.', 'Trend direction: dramatic.', 'Correlation remains ornamental.']),
-    points: Array.from({ length: 6 }, (_, index) => ({
-      key: `point-${index}`,
-      label: GRAPH_LABELS[index],
-      value: 18 + Math.round(Math.random() * 70),
-      tone: Math.random() > 0.58 ? 'warn' : Math.random() > 0.5 ? 'dim' : 'good',
-    })),
+    prompt: pick(['Choose your response protocol', 'Select appropriate posture', 'Behavioral override', 'Response required', 'Situational adjustment']),
+    omen: pick(['None of these are real options.', 'Your selection has been noted.', 'All paths are decorative.', 'Choose carefully. It will not matter.', 'The system awaits your non-binding input.']),
+    options: shuffled.slice(0, 6),
   }
 }
 
@@ -137,6 +170,14 @@ function makeInboxInterruption() {
   }
 }
 
+function makeDrawInterruption() {
+  return {
+    type: 'draw',
+    prompt: pick(['Illustrate your concerns.', 'Express this visually.', 'Please diagram the situation.', 'Indicate the problem.', 'Draw something.']),
+    omen: pick(['It will not be saved.', 'No one will see this.', 'Draw what you cannot say.', 'This disappears when you look away.', 'Leave a trace. Watch it vanish.']),
+  }
+}
+
 function makeChoiceInterruption() {
   const template = pick(MODAL_POOL)
   return {
@@ -156,6 +197,7 @@ export function makeCard(settleLevel = 0, rng = Math.random) {
   const template = pickWeighted(CARD_POOL, item => cardWeight(item, settleLevel), rng)
   const temperament = CARD_TEMPERAMENTS[Math.floor(rng() * CARD_TEMPERAMENTS.length)]
   const lifespanBase = 9000 + rng() * 7000
+  const position = makeCardPosition(temperament, rng)
   return {
     ...template,
     id: uid(),
@@ -171,6 +213,13 @@ export function makeCard(settleLevel = 0, rng = Math.random) {
     tilt: (rng() - 0.5) * 5,
     drift: (rng() - 0.5) * 10,
     pulse: 3 + rng() * 3.5,
+    anchorX: position.spawnX,
+    anchorY: position.spawnY,
+    homeX: position.homeX,
+    homeY: position.homeY,
+    deployed: false,
+    velocityX: 0,
+    velocityY: 0,
     personaX: 0,
     personaY: 0,
     jitterX: 0,
@@ -191,7 +240,9 @@ export function makeModal() {
           ? makeBoardInterruption()
           : type === 'emoji'
             ? makeEmojiInterruption()
-            : makeInboxInterruption()
+            : type === 'inbox'
+              ? makeInboxInterruption()
+              : makeDrawInterruption()
 
   return {
     ...base,

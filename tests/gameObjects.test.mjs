@@ -29,12 +29,12 @@ test('choice interruptions include three options with fake stat deltas', () => {
   assert.ok(modal.options.every(option => Array.isArray(option.deltas) && option.deltas.length >= 2))
 })
 
-test('graph interruptions include chart points', () => {
+test('graph interruptions include protocol options', () => {
   const modal = withMockedRandom(0.21, () => makeModal())
 
   assert.equal(modal.type, 'graph')
-  assert.equal(modal.points.length, 6)
-  assert.ok(modal.points.every(point => typeof point.value === 'number'))
+  assert.equal(modal.options.length, 6)
+  assert.ok(modal.options.every(option => typeof option === 'string'))
 })
 
 test('board interruptions include nine cells and arrow labels', () => {
@@ -59,6 +59,14 @@ test('inbox interruptions include mixed message rows', () => {
   assert.equal(modal.type, 'inbox')
   assert.equal(modal.items.length, 4)
   assert.ok(modal.items.every(item => typeof item.from === 'string' && typeof item.subject === 'string'))
+})
+
+test('draw interruptions include prompt and omen only', () => {
+  const modal = withMockedRandom(0.9, () => makeModal())
+
+  assert.equal(modal.type, 'draw')
+  assert.ok(typeof modal.prompt === 'string')
+  assert.ok(typeof modal.omen === 'string')
 })
 
 test('higher settle levels reduce red and purple card incidence', () => {
