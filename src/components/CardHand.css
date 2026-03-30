@@ -8,6 +8,7 @@
 .hand-overlay {
   position: absolute;
   inset: 0;
+  z-index: 180;
 }
 
 .hand-cards {
@@ -24,6 +25,7 @@
   flex-wrap: wrap;
   min-width: 0;
   pointer-events: none;
+  z-index: 260;
 }
 
 .card-slot {
@@ -84,6 +86,10 @@
   72% { transform: translate(calc(var(--persona-x) + var(--jitter-x)), calc(var(--persona-y) + var(--jitter-y) - 1px - var(--jitter-boost))) rotate(calc(var(--tilt) + var(--temper-rotate) - 0.25deg)); }
 }
 @keyframes elusiveShimmer { 0%,100% { opacity: 1; } 50% { opacity: 0.82; } }
+@keyframes centralizingGlow {
+  0%,100% { border-color: rgba(255,125,72,0.28); box-shadow: 0 8px 34px rgba(0,0,0,0.54), 0 0 20px rgba(255,120,72,0.18); }
+  50% { border-color: rgba(255,166,106,0.72); box-shadow: 0 14px 44px rgba(0,0,0,0.6), 0 0 42px rgba(255,120,72,0.34); }
+}
 
 .card {
   width: 148px;
@@ -126,6 +132,15 @@
 .card-hovering:not(.card-dragging) { animation: cardIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275) both, hoverTemperament calc(var(--pulse) * 2.4) ease-in-out infinite; }
 .card-elusive { animation: cardIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275) both, elusiveShimmer calc(var(--pulse) * 1.8) ease-in-out infinite; }
 .card-elusive:hover { filter: brightness(1.08) saturate(1.12); }
+.card-centralizing {
+  animation: cardIn 0.42s cubic-bezier(0.175,0.885,0.32,1.275) both, centralizingGlow calc(var(--pulse) * 1.1) ease-in-out infinite;
+  box-shadow: 0 10px 36px rgba(0,0,0,0.58), 0 0 30px rgba(255,120,72,0.2);
+}
+.card-centralizing.card-fading { animation-duration: 2.6s !important; }
+.card-centralizing .card-art { background: radial-gradient(ellipse at 50% 40%, rgba(255,145,84,0.34) 0%, transparent 58%), linear-gradient(145deg, #1f0b08 0%, #3a150f 55%, #140605 100%); }
+.card-centralizing .card-body { background: linear-gradient(to bottom, transparent, rgba(24,10,8,0.64)); border-top: 1px solid rgba(255,145,84,0.14); }
+.card-centralizing .card-title { color: #ffc2a2; text-shadow: 0 0 14px rgba(255,145,84,0.18); }
+.card-centralizing .card-cost { color: #ffb08a; border-color: rgba(255,145,84,0.62); text-shadow: 0 0 12px rgba(255,145,84,0.72); }
 
 .card-cost {
   position: absolute;

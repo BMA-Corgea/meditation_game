@@ -30,6 +30,7 @@ import { FooterNote } from './components/FooterNote.jsx'
 const SCENES = ['night', 'dawn', 'rain', 'gold', 'office']
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
 const SETTLE_MAX = 4
+const FIXATION_MAX = 5
 export const IDLE_SETTLE_DELAY = 12000
 const CARD_X_MIN = 8
 const CARD_X_MAX = 92
@@ -77,9 +78,11 @@ export default function App() {
   const [audioStarted, setAudioStarted] = useState(false)
   const [audioVolume, setAudioVolume] = useState(42)
   const [settleLevel, setSettleLevel] = useState(0)
+  const [fixationLevel, setFixationLevel] = useState(0)
 
   const calmRef = useRef(false)
   const settleRef = useRef(0)
+  const fixationRef = useRef(0)
   const dragRef = useRef(null)
   const floatId = useRef(0)
   const walkerProcessed = useRef(new Set())
@@ -98,6 +101,10 @@ export default function App() {
   useEffect(() => {
     settleRef.current = settleLevel
   }, [settleLevel])
+
+  useEffect(() => {
+    fixationRef.current = fixationLevel
+  }, [fixationLevel])
 
   useEffect(() => () => {
     if (quoteTimerRef.current) clearTimeout(quoteTimerRef.current)
@@ -213,6 +220,14 @@ export default function App() {
     lastIdleSettleAtRef.current = now
   }, [])
 
+  const increaseFixation = useCallback((amount = 1) => {
+    setFixationLevel(prev => Math.min(FIXATION_MAX, prev + amount))
+  }, [])
+
+  const releaseFixation = useCallback((amount = 1) => {
+    setFixationLevel(prev => Math.max(0, prev - amount))
+  }, [])
+
   const applyEffect = useCallback((effect, amount) => {
     switch (effect) {
       case 'number': {
@@ -281,6 +296,7 @@ export default function App() {
     setCalmBreath(true)
     setCalm(true)
     setSettleLevel(prev => Math.min(SETTLE_MAX, prev + 1))
+    releaseFixation(2)
     setWalkers([])
     setCards([])
     setScene('gold')
@@ -308,11 +324,12 @@ export default function App() {
       setCalmBreath(false)
       setCalm(false)
     }, 3200)
-  }, [addFloater, registerEngagement])
+  }, [addFloater, registerEngagement, releaseFixation])
 
   useEffect(() => {
     const intervalId = setInterval(() => {
       setSettleLevel(prev => Math.max(0, prev - 1))
+      setFixationLevel(prev => Math.max(0, prev - 1))
     }, 18000)
 
     return () => clearInterval(intervalId)
@@ -325,6 +342,7 @@ export default function App() {
 
       lastIdleSettleAtRef.current = now
       setSettleLevel(prev => Math.min(SETTLE_MAX, prev + 1))
+      setFixationLevel(prev => Math.max(0, prev - 1))
     }, 1000)
 
     return () => clearInterval(intervalId)
@@ -355,7 +373,7 @@ export default function App() {
       setCards(prev => prev.map(card => (
         card.deployed
           ? card
-          : card.temperament === 'elusive'
+          : card.temperament === 'elusive' || card.temperament === 'centralizing'
             ? {
                 ...card,
                 deployed: true,
@@ -380,7 +398,7 @@ export default function App() {
         const movingIds = new Set(
           prev
             .filter(card => (
-              card.temperament === 'elusive' &&
+              (card.temperament === 'elusive' || card.temperament === 'centralizing') &&
               !card.fading &&
               dragRef.current?.cardId !== card.id
             ))
@@ -392,12 +410,20 @@ export default function App() {
         const viewportWidth = Math.max(window.innerWidth || 1, 1)
         const viewportHeight = Math.max(window.innerHeight || 1, 1)
         const next = prev.map(card => movingIds.has(card.id) ? { ...card } : card)
-        const elusiveCards = next.filter(card => movingIds.has(card.id))
+        const floatingCards = next.filter(card => movingIds.has(card.id))
 
-        elusiveCards.forEach(card => {
+        floatingCards.forEach(card => {
+          if (card.temperament === 'centralizing') {
+            card.velocityX = (card.velocityX ?? 0) + (card.homeX - card.anchorX) * 0.0016
+            card.velocityY = (card.velocityY ?? 0) + (card.homeY - card.anchorY) * 0.0016
+            return
+          }
+
           card.velocityX = (card.velocityX ?? 0) + (card.homeX - card.anchorX) * 0.0003
           card.velocityY = (card.velocityY ?? 0) + (card.homeY - card.anchorY) * 0.0003
         })
+
+        const elusiveCards = floatingCards.filter(card => card.temperament === 'elusive')
 
         for (let i = 0; i < elusiveCards.length; i += 1) {
           for (let j = i + 1; j < elusiveCards.length; j += 1) {
@@ -424,7 +450,7 @@ export default function App() {
         }
 
         let changed = false
-        elusiveCards.forEach(card => {
+        floatingCards.forEach(card => {
           const nextVelocityX = (card.velocityX ?? 0) * 0.86
           const nextVelocityY = (card.velocityY ?? 0) * 0.86
           const nextAnchorX = clamp(card.anchorX + nextVelocityX, CARD_X_MIN, CARD_X_MAX)
@@ -456,13 +482,33 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    const intervalId = setInterval(() => {
-      if (calmRef.current) return
-      if (!shouldAllowStimulus(settleRef.current, 0.16)) return
-      setCards(prev => (prev.length >= 5 ? prev : [...prev, makeCard(settleRef.current)]))
-    }, 2800)
+    let timeoutId
 
-    return () => clearInterval(intervalId)
+    const schedule = () => {
+      timeoutId = setTimeout(() => {
+        if (calmRef.current) {
+          schedule()
+          return
+        }
+
+        if (!shouldAllowStimulus(settleRef.current, 0.16)) {
+          schedule()
+          return
+        }
+
+        setCards(prev => {
+          const maxCards = 5 + fixationRef.current * 2
+          if (prev.length >= maxCards) return prev
+          return [...prev, makeCard(settleRef.current, fixationRef.current)]
+        })
+
+        schedule()
+      }, Math.max(950, 2800 - fixationRef.current * 340))
+    }
+
+    schedule()
+
+    return () => clearTimeout(timeoutId)
   }, [])
 
   useEffect(() => {
@@ -619,6 +665,9 @@ export default function App() {
     if (card.type === 'breathe' && calmRef.current) return
     startAudio()
     registerEngagement()
+    if (card.type !== 'breathe') {
+      increaseFixation(card.temperament === 'centralizing' ? 2 : 1)
+    }
 
     if (card.temperament === 'elusive' && Date.now() - card.born < 1300) {
       addFloater('too eager')
@@ -642,7 +691,7 @@ export default function App() {
 
     dragRef.current = nextDragState
     setDragState(nextDragState)
-  }, [addEffect, addFloater, registerEngagement, startAudio])
+  }, [addEffect, addFloater, increaseFixation, registerEngagement, startAudio])
 
   const clearDragState = useCallback(() => {
     dragRef.current = null
@@ -770,25 +819,29 @@ export default function App() {
     const dxPct = ((currentDrag.x - currentDrag.ox) / viewportWidth) * 100
     const dyPct = ((currentDrag.y - currentDrag.oy) / viewportHeight) * 100
 
-    setCards(prev => prev.map(item => (
-      item.id === card.id
-        ? {
-            ...item,
-            anchorX: clamp(currentDrag.anchorX + dxPct, CARD_X_MIN, CARD_X_MAX),
-            anchorY: clamp(currentDrag.anchorY + dyPct, CARD_Y_MIN, CARD_Y_MAX),
-            homeX: clamp(currentDrag.anchorX + dxPct, CARD_X_MIN, CARD_X_MAX),
-            homeY: clamp(currentDrag.anchorY + dyPct, CARD_Y_MIN, CARD_Y_MAX),
-            deployed: true,
-            velocityX: 0,
-            velocityY: 0,
-          }
-        : item
-    )))
+    setCards(prev => prev.map(item => {
+      if (item.id !== card.id) return item
+
+      const nextAnchorX = clamp(currentDrag.anchorX + dxPct, CARD_X_MIN, CARD_X_MAX)
+      const nextAnchorY = clamp(currentDrag.anchorY + dyPct, CARD_Y_MIN, CARD_Y_MAX)
+
+      return {
+        ...item,
+        anchorX: nextAnchorX,
+        anchorY: nextAnchorY,
+        homeX: item.temperament === 'centralizing' ? item.homeX : nextAnchorX,
+        homeY: item.temperament === 'centralizing' ? item.homeY : nextAnchorY,
+        deployed: true,
+        velocityX: 0,
+        velocityY: 0,
+      }
+    }))
   }, [addFloater, applyEffect, clearDragState, completeBreathe, rotateScene])
 
   const handleOption = useCallback((modal, option) => {
     startAudio()
     registerEngagement()
+    increaseFixation(1)
     const total = option.deltas.reduce((sum, delta) => sum + delta.delta, 0)
     addFloater(option.deltas.map(({ label, delta }) => `${delta > 0 ? '+' : ''}${delta} ${label.toLowerCase()}`).join('  '))
     addFloater(modal.omen.toLowerCase())
@@ -797,11 +850,12 @@ export default function App() {
       rotateScene()
     }
     setModals(prev => prev.filter(item => item.id !== modal.id))
-  }, [addEffect, addFloater, registerEngagement, rotateScene, startAudio])
+  }, [addEffect, addFloater, increaseFixation, registerEngagement, rotateScene, startAudio])
 
   const handleWalkerClick = useCallback((walker) => {
     startAudio()
     registerEngagement()
+    increaseFixation(1)
     if (walker.phase === 'exiting') return
 
     const timers = walkerTimers.current.get(walker.id) ?? []
@@ -841,7 +895,7 @@ export default function App() {
       setWalkers(prev => prev.filter(item => item.id !== walker.id))
       walkerProcessed.current.delete(walker.id)
     }, walker.behavior === 'skittish' ? 420 : 650)
-  }, [addEffect, addFloater, registerEngagement, startAudio])
+  }, [addEffect, addFloater, increaseFixation, registerEngagement, startAudio])
 
   const activeCards = cards.filter(card => !card.fading)
   const urgentCount = activeCards.filter(card => card.style === 'urgent').length
@@ -865,6 +919,7 @@ export default function App() {
 
   return (
     <div className={rootClass}>
+      <div className={`fixation-aura${fixationLevel >= 3 ? ' is-active' : ''} level-${Math.min(fixationLevel, FIXATION_MAX)}`} />
       <div className="audio-controls">
         <button
           type="button"
@@ -909,6 +964,7 @@ export default function App() {
       <CardHand
         cards={cards}
         dragState={dragState}
+        fixationLevel={fixationLevel}
         urgentCount={urgentCount}
         intrusiveCount={intrusiveCount}
         mysticCount={mysticCount}

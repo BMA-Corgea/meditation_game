@@ -81,3 +81,19 @@ test('higher settle levels reduce red and purple card incidence', () => {
 
   assert.ok(settledIntrusive < agitatedIntrusive)
 })
+
+test('higher fixation levels create more centralizing cards and longer-lived cards', () => {
+  const calmRng = makeSeededRng(17)
+  const fixatedRng = makeSeededRng(17)
+
+  const calm = Array.from({ length: 240 }, () => makeCard(0, 0, calmRng))
+  const fixated = Array.from({ length: 240 }, () => makeCard(0, 5, fixatedRng))
+
+  const calmCentralizing = calm.filter(card => card.temperament === 'centralizing').length
+  const fixatedCentralizing = fixated.filter(card => card.temperament === 'centralizing').length
+  const calmAverageLifespan = calm.reduce((sum, card) => sum + card.lifespan, 0) / calm.length
+  const fixatedAverageLifespan = fixated.reduce((sum, card) => sum + card.lifespan, 0) / fixated.length
+
+  assert.ok(fixatedCentralizing > calmCentralizing)
+  assert.ok(fixatedAverageLifespan > calmAverageLifespan)
+})

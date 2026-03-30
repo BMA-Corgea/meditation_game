@@ -1,6 +1,6 @@
 # Meditation Game
 
-A small React meditation toy about distraction, reaction, and the option to stop feeding either one.
+A small React meditation toy about distraction, reaction, fixation, and the option to stop feeding any of them.
 
 This is not a strategy game, deckbuilder, or progression system. The current build is a surreal attention loop: cards appear, ask for engagement, inflate a meaningless total, interrupt the screen, or fake the feeling of consequence. `Breathe` is always present as the one steady action.
 
@@ -8,12 +8,20 @@ This is not a strategy game, deckbuilder, or progression system. The current bui
 
 The current version plays like this:
 
-- A permanent `Breathe` card is always in your hand.
+- A permanent `Breathe` card is always in your hand and must remain visible and playable.
 - Other cards appear automatically and expire on their own after a short lifespan.
+- Two opposing invisible pressures shape the pacing:
+  - `settleLevel` rises through breathing and sustained non-interaction.
+  - `fixationLevel` rises through repeated engagement and craving loops.
 - Non-breathe cards are played by dragging them upward until the drag target switches from `drag higher` to `release to play`.
+- `steady` and `jittery` cards stay in the row.
+- `hovering`, `elusive`, and `centralizing` cards roam above it.
+- `centralizing` cards drift toward the middle, render larger, glow more intensely, and fade more slowly.
 - Some cards increase the `MEANINGLESS TOTAL`.
 - Some cards distort the screen with shake, blur, flash, soften, or glow.
+- As fixation rises, cards get larger, `Breathe` shrinks, more cards can accumulate, and a screen aura appears.
 - Random interruptions appear as `pick 3` prompts, nonsense graphs, tiny 3x3 boards, emoji exchanges, and fake inbox/text clusters.
+- A volume slider now sits beside the ambience toggle.
 - `Pick 3` prompts still show fake stat deltas like `+3 Clarity` or `-2 Drift`.
 - Those modal stats do not persist, do not affect systems, and do not matter.
 - The non-choice interruptions are also clickable: graph bars can be focused, board tiles light adjacent tiles, emoji scenes can be selected, and message items open three-emoji quick replies.
@@ -29,11 +37,13 @@ This project works only if it resists becoming a real optimization game.
 Keep these intact:
 
 - Presence should remain available at all times.
+- `Breathe` must remain visible, reachable, and visually legible even when fixation is high.
 - Distractions should feel urgent, absurd, emotional, decorative, or vaguely profound.
 - Most interactions should stay immediate and low-stakes.
 - The big number should remain funny and meaningless.
 - Fake stats should remain fake.
 - `Breathe` should feel like a return, not a scoring mechanic.
+- `fixationLevel` should feel like attentional capture, not a hidden punishment meter.
 
 Changes are probably wrong if they introduce:
 
@@ -51,6 +61,8 @@ Changes are probably wrong if they introduce:
 - No backend
 - No persistence
 - Node's built-in test runner
+- Vitest + Testing Library
+- Playwright smoke tests
 
 ## Run Locally
 
@@ -118,6 +130,14 @@ Current card categories:
 - `neutral`
 - `mystic`
 
+Runtime temperaments:
+
+- `steady`
+- `jittery`
+- `hovering`
+- `elusive`
+- `centralizing`
+
 Important fields:
 
 ```js
@@ -157,6 +177,7 @@ Interruptions are generated in [`src/gameObjects.mjs`](/home/corgea/Desktop/Medi
 - `board`
 - `emoji`
 - `inbox`
+- `draw`
 
 `choice` prompts come from `MODAL_POOL`. Each option string is converted into an object with randomly generated decorative deltas across labels like `Clarity`, `Static`, `Momentum`, and `Importance`.
 
@@ -178,9 +199,10 @@ Most pacing lives in [`src/App.jsx`](/home/corgea/Desktop/Meditation Game/src/Ap
 
 Current values worth knowing:
 
-- Card replenish interval: `2800ms`
-- Max active non-breathe cards: `5`
-- Card lifespan: `9000ms` to `16000ms`
+- Idle settle threshold: `12000ms`
+- Base card cadence starts near `2800ms` and accelerates with fixation
+- Base max active non-breathe cards starts at `5` and increases with fixation
+- Card lifespan starts around `9000ms` to `16000ms` and stretches upward with fixation
 - Modal spawn interval: `12000ms` to `21000ms`
 - Max active modals: `3`
 - Modal lifetime: `11000ms`
@@ -207,8 +229,8 @@ If you want to tune the current experience:
 
 The automated coverage now has three layers:
 
-- unit tests verify content pools, fake stat output rules, and interruption generator shapes
-- integration tests verify modal interaction behavior and app-shell rendering
-- the smoke harness boots the running app in Playwright and checks that the core shell appears
+- unit tests verify content pools, fake stat output rules, interruption generator shapes, and fixation-driven card generation
+- integration tests verify app-shell rendering, ambience controls, audio-start behavior, and idle-settle logic
+- the smoke harness boots the running app in Playwright and checks that the current shell still exposes `Breathe` and ambience controls
 
 If you add new content-generation rules or interactive interruption behavior, extend the relevant unit, integration, or smoke coverage so the project does not quietly drift into meaningful systems or broken UI states.

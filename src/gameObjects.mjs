@@ -24,7 +24,7 @@ let currentId = 1
 export const DRAG_THRESHOLD = -90
 export const WALKER_ARRIVE_DELAY = 80
 export const WALKER_TRANSITION = 1600
-const CARD_TEMPERAMENTS = ['steady', 'jittery', 'hovering', 'elusive']
+const CARD_TEMPERAMENTS = ['steady', 'jittery', 'hovering', 'elusive', 'centralizing']
 const INTERRUPTION_TYPES = ['choice', 'graph', 'board', 'emoji', 'inbox', 'draw']
 const PANEL_OPTIONS_POOL = [
   'accept', 'defer', 'escalate', 'dissolve', 'optimize', 'observe',
@@ -56,6 +56,17 @@ function pickWeighted(items, weightFn, rng = Math.random) {
   return weighted[weighted.length - 1].item
 }
 
+function resolveMakeCardArgs(fixationLevelOrRng, maybeRng) {
+  if (typeof fixationLevelOrRng === 'function') {
+    return { fixationLevel: 0, rng: fixationLevelOrRng }
+  }
+
+  return {
+    fixationLevel: fixationLevelOrRng ?? 0,
+    rng: maybeRng ?? Math.random,
+  }
+}
+
 function makeCardPosition(temperament, rng = Math.random) {
   const spawnX = 22 + rng() * 56
   const spawnY = 78 + rng() * 4
@@ -79,6 +90,15 @@ function makeCardPosition(temperament, rng = Math.random) {
     }
   }
 
+  if (temperament === 'centralizing') {
+    return {
+      spawnX,
+      spawnY,
+      homeX: 42 + rng() * 16,
+      homeY: 34 + rng() * 10,
+    }
+  }
+
   return {
     spawnX,
     spawnY,
@@ -87,15 +107,16 @@ function makeCardPosition(temperament, rng = Math.random) {
   }
 }
 
-function cardWeight(template, settleLevel) {
+function cardWeight(template, settleLevel, fixationLevel = 0) {
   const calmBias = Math.min(0.85, settleLevel * 0.22)
+  const fixationBias = Math.min(0.9, fixationLevel * 0.18)
 
   if (template.style === 'dark' || template.style === 'urgent') {
-    return Math.max(0.08, 1 - calmBias)
+    return Math.max(0.08, 1 - calmBias + fixationBias * 0.65)
   }
 
   if (template.style === 'blue') {
-    return 1 + calmBias * 0.9
+    return 1 + calmBias * 0.9 + fixationBias * 0.08
   }
 
   if (template.style === 'gold') {
@@ -107,6 +128,23 @@ function cardWeight(template, settleLevel) {
   }
 
   return 1
+}
+
+function temperamentWeight(temperament, fixationLevel) {
+  switch (temperament) {
+    case 'steady':
+      return Math.max(0.35, 1 - fixationLevel * 0.1)
+    case 'jittery':
+      return 1 + fixationLevel * 0.16
+    case 'hovering':
+      return 1
+    case 'elusive':
+      return 1 + fixationLevel * 0.22
+    case 'centralizing':
+      return 0.12 + fixationLevel * 0.9
+    default:
+      return 1
+  }
 }
 
 function makeGraphInterruption() {
@@ -193,9 +231,10 @@ export function uid() {
   return currentId
 }
 
-export function makeCard(settleLevel = 0, rng = Math.random) {
-  const template = pickWeighted(CARD_POOL, item => cardWeight(item, settleLevel), rng)
-  const temperament = CARD_TEMPERAMENTS[Math.floor(rng() * CARD_TEMPERAMENTS.length)]
+export function makeCard(settleLevel = 0, fixationLevelOrRng = 0, maybeRng = Math.random) {
+  const { fixationLevel, rng } = resolveMakeCardArgs(fixationLevelOrRng, maybeRng)
+  const template = pickWeighted(CARD_POOL, item => cardWeight(item, settleLevel, fixationLevel), rng)
+  const temperament = pickWeighted(CARD_TEMPERAMENTS, item => temperamentWeight(item, fixationLevel), rng)
   const lifespanBase = 9000 + rng() * 7000
   const position = makeCardPosition(temperament, rng)
   return {
@@ -205,10 +244,12 @@ export function makeCard(settleLevel = 0, rng = Math.random) {
     temperament,
     lifespan:
       temperament === 'elusive'
-        ? lifespanBase * 0.82
+        ? lifespanBase * (0.82 + fixationLevel * 0.1)
+        : temperament === 'centralizing'
+          ? lifespanBase * (1.45 + fixationLevel * 0.18)
         : temperament === 'steady'
           ? lifespanBase * 1.08
-          : lifespanBase,
+          : lifespanBase * (1 + fixationLevel * 0.14),
     fading: false,
     tilt: (rng() - 0.5) * 5,
     drift: (rng() - 0.5) * 10,

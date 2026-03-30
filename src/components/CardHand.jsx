@@ -5,6 +5,7 @@ const TEMPERAMENT_BADGES = {
   jittery: { glyph: 'buzz', label: 'jittery' },
   hovering: { glyph: 'drift', label: 'hovering' },
   elusive: { glyph: 'slip', label: 'elusive' },
+  centralizing: { glyph: 'pull', label: 'centralizing' },
   breathe: { glyph: 'inhale', label: 'breathe' },
 }
 
@@ -33,9 +34,9 @@ function CardItem({
       style={floating ? {
         '--card-x': `${card.anchorX ?? 50}%`,
         '--card-y': `${card.anchorY ?? 74}%`,
-        zIndex: dragging ? 240 : 160,
+        zIndex: dragging ? 240 : card.temperament === 'centralizing' ? 120 : 160,
         transition: card.temperament === 'elusive' ? 'none' : undefined,
-      } : undefined}
+      } : card.type === 'breathe' ? { zIndex: 320 } : undefined}
     >
       <div
         className={[
@@ -57,6 +58,8 @@ function CardItem({
           '--jitter-y': `${card.jitterY ?? 0}px`,
           '--temper-rotate': `${card.temperRotate ?? 0}deg`,
           '--jitter-boost': `${card.jitterBoost ?? 0}px`,
+          width: `${card.renderWidth ?? (card.type === 'breathe' ? 154 : 148)}px`,
+          height: `${card.renderHeight ?? (card.type === 'breathe' ? 200 : 192)}px`,
           ...(dragging ? {
             transform: `translate(${dx}px, ${dy}px) scale(1.1) rotate(0deg)`,
             zIndex: 80,
@@ -87,6 +90,9 @@ function CardItem({
 }
 
 export function CardHand(props) {
+  const globalCardScale = 1 + props.fixationLevel * 0.08
+  const breatheScale = Math.max(0.58, 1 - props.fixationLevel * 0.08)
+
   const breatheCard = {
     id: 'breathe',
     title: 'Breathe',
@@ -99,13 +105,23 @@ export function CardHand(props) {
     cost: 0,
     anchorX: 50,
     anchorY: 82,
+    renderWidth: 154 * breatheScale,
+    renderHeight: 200 * breatheScale,
   }
   const rowCards = [breatheCard, ...props.cards.filter(card => (
     card.temperament === 'steady' || card.temperament === 'jittery'
-  ))]
+  )).map(card => ({
+    ...card,
+    renderWidth: 148 * globalCardScale,
+    renderHeight: 192 * globalCardScale,
+  }))]
   const floatingCards = props.cards.filter(card => (
-    card.temperament === 'hovering' || card.temperament === 'elusive'
-  ))
+    card.temperament === 'hovering' || card.temperament === 'elusive' || card.temperament === 'centralizing'
+  )).map(card => ({
+    ...card,
+    renderWidth: 148 * globalCardScale * (card.temperament === 'centralizing' ? 1.75 : 1),
+    renderHeight: 192 * globalCardScale * (card.temperament === 'centralizing' ? 1.75 : 1),
+  }))
   const handClass = [
     'hand',
     props.urgentCount > 0 ? 'hand-has-urgent' : '',
@@ -120,7 +136,7 @@ export function CardHand(props) {
           <CardItem key={card.id} card={card} floating {...props} />
         ))}
       </div>
-      <div className="hand-cards">
+      <div className="hand-cards" style={{ gap: `${0.85 * globalCardScale}rem` }}>
         {rowCards.map(card => (
           <CardItem key={card.id} card={card} {...props} />
         ))}
